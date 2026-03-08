@@ -44,45 +44,57 @@ export default function VictimPage() {
       setUser(u);
       const fallbackName = u.user_metadata?.full_name ?? u.email ?? "User";
 
-      const { data: row } = await supabase
-        .from("profiles")
-        .select("name, age, medical_context, language")
-        .eq("id", u.id)
-        .single();
+      try {
+        const { data: row, error } = await supabase
+          .from("profiles")
+          .select("name, age, medical_context, language")
+          .eq("id", u.id)
+          .single();
 
-      if (row) {
-        const p: UserProfile = {
-          name: row.name || fallbackName,
-          age: row.age ?? "",
-          medicalContext: row.medical_context ?? "",
-          language: row.language ?? "",
-        };
-        setProfile(p);
-        localStorage.setItem("crisisbridge_profile", JSON.stringify(p));
-      } else {
-        const saved = localStorage.getItem("crisisbridge_profile");
-        const parsed = saved ? JSON.parse(saved) : {};
-        const p: UserProfile = {
-          name: fallbackName,
-          age: parsed.age ?? "",
-          medicalContext: parsed.medicalContext ?? "",
-          language: parsed.language ?? "",
-        };
-        setProfile(p);
-        supabase.from("profiles").upsert({
+        if (!error && row) {
+          const p: UserProfile = {
+            name: row.name || fallbackName,
+            age: row.age ?? "",
+            medicalContext: row.medical_context ?? "",
+            language: row.language ?? "",
+          };
+          setProfile(p);
+          localStorage.setItem("crisisbridge_profile", JSON.stringify(p));
+          setView("app");
+          return;
+        }
+      } catch {
+        /* profiles table missing or RLS: fall back to localStorage */
+      }
+
+      const saved = localStorage.getItem("crisisbridge_profile");
+      const parsed = saved ? JSON.parse(saved) : {};
+      const p: UserProfile = {
+        name: fallbackName,
+        age: parsed.age ?? "",
+        medicalContext: parsed.medicalContext ?? "",
+        language: parsed.language ?? "",
+      };
+      setProfile(p);
+      setView("app");
+
+      void supabase
+        .from("profiles")
+        .upsert({
           id: u.id,
           name: p.name,
           age: p.age,
           medical_context: p.medicalContext,
           language: p.language,
-        }).then(() => {});
-      }
-      setView("app");
+        })
+        .then(() => {}, () => {});
     }
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        loadProfileForUser(user);
+        loadProfileForUser(user).catch(() => {
+          setView("onboarding");
+        });
       } else {
         const saved = localStorage.getItem("crisisbridge_profile");
         if (saved) {
@@ -96,7 +108,7 @@ export default function VictimPage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        loadProfileForUser(session.user);
+        loadProfileForUser(session.user).catch(() => {});
       }
     });
 
@@ -115,13 +127,16 @@ export default function VictimPage() {
       if (view === "onboarding") setView("app");
 
       if (user) {
-        supabase.from("profiles").upsert({
-          id: user.id,
-          name: p.name,
-          age: p.age,
-          medical_context: p.medicalContext,
-          language: p.language,
-        }).then(() => {});
+        void supabase
+          .from("profiles")
+          .upsert({
+            id: user.id,
+            name: p.name,
+            age: p.age,
+            medical_context: p.medicalContext,
+            language: p.language,
+          })
+          .then(() => {}, () => {});
       }
     },
     [user, supabase, view],
