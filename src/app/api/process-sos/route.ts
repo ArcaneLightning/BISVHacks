@@ -56,23 +56,35 @@ export async function POST(request: Request) {
         } as TriageResult);
 
     const supabase = getSupabase();
-    const { data: inserted, error: insertError } = await supabase
+    const baseRow = {
+      user_name: profile.name || "Anonymous",
+      medical_context: profile.medicalContext || null,
+      lat,
+      lng,
+      audio_url: audioUrl,
+      transcript: transcript || "(Silent SOS - no voice/text provided)",
+      severity: triage.severity,
+      incident_type: triage.incident_type,
+      translated_summary: triage.translated_summary,
+      status: "active",
+    };
+
+    let { data: inserted, error: insertError } = await supabase
       .from("emergencies")
-      .insert({
-        user_name: profile.name || "Anonymous",
-        medical_context: profile.medicalContext || null,
-        preferred_language: profile.language || null,
-        lat,
-        lng,
-        audio_url: audioUrl,
-        transcript: transcript || "(Silent SOS - no voice/text provided)",
-        severity: triage.severity,
-        incident_type: triage.incident_type,
-        translated_summary: triage.translated_summary,
-        status: "active",
-      })
+      .insert({ ...baseRow, preferred_language: profile.language || null })
       .select("id")
       .single();
+
+    if (insertError) {
+      console.error("Insert attempt 1 failed:", insertError.message);
+      const retry = await supabase
+        .from("emergencies")
+        .insert(baseRow)
+        .select("id")
+        .single();
+      inserted = retry.data;
+      insertError = retry.error;
+    }
 
     if (insertError || !inserted) {
       console.error("Supabase insert error:", insertError);

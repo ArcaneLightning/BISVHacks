@@ -41,11 +41,20 @@ export async function POST(request: Request) {
       .eq("emergency_id", emergency_id)
       .order("created_at", { ascending: true });
 
-    const { data: emergency } = await supabase
+    let { data: emergency } = await supabase
       .from("emergencies")
       .select("translated_summary, incident_type, severity, medical_context, lat, lng, user_name, transcript, preferred_language")
       .eq("id", emergency_id)
       .single();
+
+    if (!emergency) {
+      const retry = await supabase
+        .from("emergencies")
+        .select("translated_summary, incident_type, severity, medical_context, lat, lng, user_name, transcript")
+        .eq("id", emergency_id)
+        .single();
+      emergency = retry.data;
+    }
 
     const knownParts: string[] = [];
     if (emergency?.lat != null && emergency?.lng != null) {
