@@ -17,6 +17,7 @@ type UserProfile = {
   name: string;
   age: string;
   medicalContext: string;
+  language: string;
 };
 
 export default function ProfileView({
@@ -35,10 +36,11 @@ export default function ProfileView({
   const [medicalContext, setMedicalContext] = useState(
     profile?.medicalContext ?? "",
   );
+  const [language, setLanguage] = useState(profile?.language ?? "");
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
-    onSave({ name, age, medicalContext });
+    onSave({ name, age, medicalContext, language });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -91,6 +93,21 @@ export default function ProfileView({
               placeholder="Allergies, conditions, medications..."
               className="border-gray-700 bg-gray-900 text-white"
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="p-language" className="text-white">
+              Preferred Language
+            </Label>
+            <Input
+              id="p-language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              placeholder="e.g. Spanish, French, Arabic..."
+              className="border-gray-700 bg-gray-900 text-white"
+            />
+            <p className="text-xs text-gray-600">
+              AI will respond in this language during emergencies
+            </p>
           </div>
           <Button
             variant="default"

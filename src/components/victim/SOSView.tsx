@@ -21,6 +21,7 @@ type UserProfile = {
   name: string;
   age: string;
   medicalContext: string;
+  language: string;
 };
 
 export default function SOSView({
@@ -67,7 +68,7 @@ export default function SOSView({
             textMessage,
             lat: coords.lat,
             lng: coords.lng,
-            profile: profile ?? { name: "Guest", age: "", medicalContext: "" },
+            profile: profile ?? { name: "Guest", age: "", medicalContext: "", language: "" },
           }),
           signal: AbortSignal.timeout(180_000),
         });

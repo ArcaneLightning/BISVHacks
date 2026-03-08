@@ -24,6 +24,7 @@ type UserProfile = {
   name: string;
   age: string;
   medicalContext: string;
+  language: string;
 };
 
 export default function VictimPage() {
@@ -39,17 +40,49 @@ export default function VictimPage() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUser(user);
+    async function loadProfileForUser(u: User) {
+      setUser(u);
+      const fallbackName = u.user_metadata?.full_name ?? u.email ?? "User";
+
+      const { data: row } = await supabase
+        .from("profiles")
+        .select("name, age, medical_context, language")
+        .eq("id", u.id)
+        .single();
+
+      if (row) {
+        const p: UserProfile = {
+          name: row.name || fallbackName,
+          age: row.age ?? "",
+          medicalContext: row.medical_context ?? "",
+          language: row.language ?? "",
+        };
+        setProfile(p);
+        localStorage.setItem("crisisbridge_profile", JSON.stringify(p));
+      } else {
         const saved = localStorage.getItem("crisisbridge_profile");
         const parsed = saved ? JSON.parse(saved) : {};
-        setProfile({
-          name: user.user_metadata?.full_name ?? user.email ?? "User",
+        const p: UserProfile = {
+          name: fallbackName,
           age: parsed.age ?? "",
           medicalContext: parsed.medicalContext ?? "",
-        });
-        setView("app");
+          language: parsed.language ?? "",
+        };
+        setProfile(p);
+        supabase.from("profiles").upsert({
+          id: u.id,
+          name: p.name,
+          age: p.age,
+          medical_context: p.medicalContext,
+          language: p.language,
+        }).then(() => {});
+      }
+      setView("app");
+    }
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        loadProfileForUser(user);
       } else {
         const saved = localStorage.getItem("crisisbridge_profile");
         if (saved) {
@@ -63,42 +96,44 @@ export default function VictimPage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser(session.user);
-        const saved = localStorage.getItem("crisisbridge_profile");
-        const parsed = saved ? JSON.parse(saved) : {};
-        setProfile({
-          name:
-            session.user.user_metadata?.full_name ??
-            session.user.email ??
-            "User",
-          age: parsed.age ?? "",
-          medicalContext: parsed.medicalContext ?? "",
-        });
-        setView("app");
+        loadProfileForUser(session.user);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase.auth]);
+  }, [supabase]);
 
   const handleGuestContinue = () => {
-    setProfile({ name: "Guest", age: "", medicalContext: "" });
+    setProfile({ name: "Guest", age: "", medicalContext: "", language: "" });
     setView("app");
   };
 
-  const handleProfileSave = (p: UserProfile) => {
-    localStorage.setItem("crisisbridge_profile", JSON.stringify(p));
-    setProfile(p);
-    if (view === "onboarding") setView("app");
-  };
+  const handleProfileSave = useCallback(
+    (p: UserProfile) => {
+      localStorage.setItem("crisisbridge_profile", JSON.stringify(p));
+      setProfile(p);
+      if (view === "onboarding") setView("app");
 
-  const handleSignOut = async () => {
+      if (user) {
+        supabase.from("profiles").upsert({
+          id: user.id,
+          name: p.name,
+          age: p.age,
+          medical_context: p.medicalContext,
+          language: p.language,
+        }).then(() => {});
+      }
+    },
+    [user, supabase, view],
+  );
+
+  const handleSignOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     setView("onboarding");
     localStorage.removeItem("crisisbridge_profile");
-  };
+  }, [supabase]);
 
   if (view === "onboarding") {
     return (
@@ -112,7 +147,9 @@ export default function VictimPage() {
   return (
     <main className="flex min-h-dvh flex-col bg-black text-white">
       <header className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
-        <h1 className="text-lg font-bold">CrisisBridge</h1>
+        <button onClick={() => setActiveTab("sos")} className="cursor-pointer text-lg font-bold">
+          CrisisBridge
+        </button>
         <span className="text-xs text-gray-500">
           {user ? profile?.name : `Guest${profile?.name !== "Guest" ? `: ${profile?.name}` : ""}`}
         </span>

@@ -18,6 +18,7 @@ interface ProcessSOSBody {
     name: string;
     age: string;
     medicalContext: string;
+    language: string;
   };
 }
 
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
       .insert({
         user_name: profile.name || "Anonymous",
         medical_context: profile.medicalContext || null,
+        preferred_language: profile.language || null,
         lat,
         lng,
         audio_url: audioUrl,
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
 
     const knownData = buildKnownDataContext(lat, lng, profile, transcript, hasAudio);
 
-    const followUpQuestion = await generateFollowUp(triage, transcript, knownData);
+    const followUpQuestion = await generateFollowUp(triage, transcript, knownData, profile.language);
 
     const [ttsAudio] = await Promise.all([
       generateTTS(followUpQuestion).catch(() => null),
@@ -168,8 +170,15 @@ async function generateFollowUp(
   triage: TriageResult,
   transcript: string,
   knownData: string,
+  preferredLanguage?: string,
 ): Promise<string> {
+  const langInstruction = preferredLanguage
+    ? `IMPORTANT: You MUST respond in ${preferredLanguage}.`
+    : `IMPORTANT: Detect the language of the user's message and respond in the SAME language. If the message is in Spanish, respond in Spanish. If in Arabic, respond in Arabic. Default to English only if you cannot detect the language.`;
+
   const systemPrompt = `You are CrisisBridge, an AI emergency assistant. You just triaged an emergency: ${triage.incident_type} (Severity ${triage.severity}). Summary: ${triage.translated_summary}.
+
+${langInstruction}
 
 DATA ALREADY COLLECTED (DO NOT ask for these again):
 ${knownData}

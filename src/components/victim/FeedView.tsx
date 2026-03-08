@@ -38,6 +38,7 @@ export default function FeedView() {
         .from("emergencies")
         .select("*")
         .eq("status", "active")
+        .gte("severity", 4)
         .order("severity", { ascending: false })
         .limit(50);
       if (data) setEmergencies(data as Emergency[]);
@@ -50,7 +51,9 @@ export default function FeedView() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "emergencies" },
         (payload) => {
-          setEmergencies((prev) => sortBySeverity([payload.new, ...prev]));
+          if ((payload.new.severity ?? 0) >= 4) {
+            setEmergencies((prev) => sortBySeverity([payload.new, ...prev]));
+          }
         },
       )
       .on<Emergency>(
@@ -58,14 +61,18 @@ export default function FeedView() {
         { event: "UPDATE", schema: "public", table: "emergencies" },
         (payload) => {
           const updated = payload.new;
-          if (updated.status === "resolved") {
+          if (updated.status === "resolved" || (updated.severity ?? 0) < 4) {
             setEmergencies((prev) => prev.filter((e) => e.id !== updated.id));
           } else {
-            setEmergencies((prev) =>
-              sortBySeverity(
-                prev.map((e) => (e.id === updated.id ? updated : e)),
-              ),
-            );
+            setEmergencies((prev) => {
+              const exists = prev.some((e) => e.id === updated.id);
+              if (exists) {
+                return sortBySeverity(
+                  prev.map((e) => (e.id === updated.id ? updated : e)),
+                );
+              }
+              return sortBySeverity([updated, ...prev]);
+            });
           }
         },
       )
@@ -84,9 +91,9 @@ export default function FeedView() {
   return (
     <div className="flex flex-1 flex-col pb-20">
       <div className="border-b border-gray-800 px-4 py-3">
-        <h2 className="text-lg font-bold text-white">Active Emergencies</h2>
+        <h2 className="text-lg font-bold text-white">High Priority Alerts</h2>
         <p className="text-xs text-gray-500">
-          {emergencies.length} active report{emergencies.length !== 1 ? "s" : ""}
+          {emergencies.length} critical alert{emergencies.length !== 1 ? "s" : ""} nearby
         </p>
       </div>
       <ScrollArea className="flex-1">

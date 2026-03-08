@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     const { data: emergency } = await supabase
       .from("emergencies")
-      .select("translated_summary, incident_type, severity, medical_context, lat, lng, user_name, transcript")
+      .select("translated_summary, incident_type, severity, medical_context, lat, lng, user_name, transcript, preferred_language")
       .eq("id", emergency_id)
       .single();
 
@@ -55,7 +55,14 @@ export async function POST(request: Request) {
     if (emergency?.medical_context) knownParts.push(`Known medical conditions: ${emergency.medical_context}`);
     const knownData = knownParts.join("\n");
 
+    const prefLang = (emergency as Record<string, unknown>)?.preferred_language as string | null;
+    const langInstruction = prefLang
+      ? `IMPORTANT: You MUST respond in ${prefLang}.`
+      : `IMPORTANT: Detect the language of the user's messages and respond in the SAME language. If the user writes in Spanish, respond in Spanish. If in Arabic, respond in Arabic. Default to English only if you cannot detect the language.`;
+
     const systemPrompt = `You are CrisisBridge, an AI emergency assistant helping a victim during a crisis. You are conducting follow-up questions to gather critical information for first responders.
+
+${langInstruction}
 
 Emergency context: ${emergency?.incident_type ?? "Unknown"} (Severity ${emergency?.severity ?? "?"}). Summary: ${emergency?.translated_summary ?? "N/A"}.
 
