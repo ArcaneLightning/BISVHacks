@@ -146,7 +146,7 @@ export default function VictimPage() {
 
   return (
     <main className="flex min-h-dvh flex-col bg-black text-white">
-      <header className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+      <header className="flex items-center justify-between border-b border-gray-800 px-6 py-3">
         <button onClick={() => setActiveTab("sos")} className="cursor-pointer text-lg font-bold">
           CrisisBridge
         </button>

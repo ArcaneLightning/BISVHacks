@@ -182,50 +182,60 @@ export default function SOSView({
         <>
           <div className="grid w-full max-w-xs grid-cols-2 gap-4">
             {/* Voice SOS */}
-            <button
-              onClick={handleSOS}
-              disabled={processing}
-              className={`group relative flex aspect-square flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border text-white shadow-xl transition-all active:scale-[0.97] disabled:opacity-50 ${
-                isRecording
-                  ? "animate-pulse border-red-500 bg-red-600 ring-4 ring-red-500/30"
-                  : "border-red-900/50 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700"
-              }`}
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.1),transparent)]" />
-              <div className="relative">
-                {isRecording ? (
-                  <Send className="h-10 w-10" strokeWidth={2} />
-                ) : processing ? (
-                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
-                ) : (
-                  <Mic className="h-10 w-10" strokeWidth={2} />
-                )}
-              </div>
-              <div className="relative text-center">
-                <span className="block text-lg font-black tracking-wide">
-                  {processing ? "SENDING" : isRecording ? "SEND" : "SOS"}
-                </span>
-                <span className="block text-[10px] font-medium uppercase tracking-widest opacity-70">
-                  {isRecording ? "Tap to send" : "Voice"}
-                </span>
-              </div>
-            </button>
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                onClick={handleSOS}
+                disabled={processing}
+                className={`group relative flex aspect-square w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border text-white shadow-[0_8px_30px_rgba(220,38,38,0.25)] transition-all active:scale-[0.97] disabled:opacity-50 ${
+                  isRecording
+                    ? "animate-pulse border-red-500 bg-red-600 ring-4 ring-red-500/30"
+                    : "border-red-900/50 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 hover:shadow-[0_8px_32px_rgba(220,38,38,0.35)]"
+                }`}
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.12),transparent)]" />
+                <div className="relative">
+                  {isRecording ? (
+                    <Send className="h-10 w-10" strokeWidth={2} />
+                  ) : processing ? (
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
+                  ) : (
+                    <Mic className="h-10 w-10" strokeWidth={2} />
+                  )}
+                </div>
+                <div className="relative text-center">
+                  <span className="block text-lg font-black tracking-wide">
+                    {processing ? "SENDING" : isRecording ? "SEND" : "SOS"}
+                  </span>
+                  <span className="block text-sm font-bold uppercase tracking-widest opacity-90">
+                    {isRecording ? "Tap to send" : "Voice"}
+                  </span>
+                </div>
+              </button>
+              <p className="text-center text-xs text-gray-500">
+                Notifies dispatchers
+              </p>
+            </div>
 
             {/* Silent SOS */}
-            <button
-              onClick={() => setSilentMode(true)}
-              disabled={processing || isRecording}
-              className="group relative flex aspect-square flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-blue-900/50 bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-xl transition-all hover:from-blue-500 hover:to-blue-700 active:scale-[0.97] disabled:opacity-50"
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.1),transparent)]" />
-              <MicOff className="relative h-10 w-10" strokeWidth={2} />
-              <div className="relative text-center">
-                <span className="block text-lg font-black tracking-wide">SOS</span>
-                <span className="block text-[10px] font-medium uppercase tracking-widest opacity-70">
-                  Silent
-                </span>
-              </div>
-            </button>
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                onClick={() => setSilentMode(true)}
+                disabled={processing || isRecording}
+                className="group relative flex aspect-square w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-amber-900/50 bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-[0_8px_30px_rgba(245,158,11,0.25)] transition-all hover:from-amber-400 hover:to-amber-600 hover:shadow-[0_8px_32px_rgba(245,158,11,0.35)] active:scale-[0.97] disabled:opacity-50"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.12),transparent)]" />
+                <MicOff className="relative h-10 w-10" strokeWidth={2} />
+                <div className="relative text-center">
+                  <span className="block text-lg font-black tracking-wide">SOS</span>
+                  <span className="block text-sm font-bold uppercase tracking-widest opacity-90">
+                    Silent
+                  </span>
+                </div>
+              </button>
+              <p className="text-center text-xs text-gray-500">
+                Location + optional message
+              </p>
+            </div>
           </div>
 
           {status && (

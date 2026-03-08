@@ -32,7 +32,7 @@ export default function BottomNav({
                   ? tab.id === "sos"
                     ? "text-red-500"
                     : "text-white"
-                  : "text-gray-500 hover:text-gray-300"
+                  : "text-gray-300 hover:text-white"
               }`}
             >
               <tab.Icon
