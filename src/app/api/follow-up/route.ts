@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     if (!emergency) {
       const retry = await supabase
         .from("emergencies")
-        .select("translated_summary, incident_type, severity, medical_context, lat, lng, user_name, transcript")
+        .select("translated_summary, incident_type, severity, medical_context, lat, lng, user_name, transcript, preferred_language")
         .eq("id", emergency_id)
         .single();
       emergency = retry.data;
