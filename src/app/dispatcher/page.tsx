@@ -26,6 +26,7 @@ export default function DispatcherPage() {
   const [selected, setSelected] = useState<Emergency | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [accessChecked, setAccessChecked] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -34,6 +35,18 @@ export default function DispatcherPage() {
       setUser(user);
     });
   }, [supabase.auth]);
+
+  useEffect(() => {
+    async function checkAccess() {
+      const res = await fetch("/api/check-dispatcher");
+      const { allowed } = await res.json();
+      setAccessChecked(true);
+      if (!allowed) {
+        router.replace("/access-denied");
+      }
+    }
+    checkAccess();
+  }, [router]);
 
   useEffect(() => {
     async function fetchAll() {
@@ -106,6 +119,14 @@ export default function DispatcherPage() {
         .toUpperCase()
         .slice(0, 2)
     : user?.email?.slice(0, 2).toUpperCase() ?? "??";
+
+  if (!accessChecked) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-slate-950">
+        <p className="text-slate-500">Checking access...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh bg-slate-950">

@@ -77,21 +77,27 @@ export default function IncomingCall({
   useEffect(() => {
     if (!emergencyId) return;
 
+    hasOfferRef.current = false;
+
     const channel = supabase
       .channel(`call:${emergencyId}`, {
         config: { broadcast: { self: false, ack: true } },
       })
-      .on("broadcast", { event: "offer" }, ({ payload }) => {
-        if (payload.from === "dispatcher" && !hasOfferRef.current) {
-          hasOfferRef.current = true;
-          setIncomingOffer(payload.offer);
-          offerChannelRef.current = channel;
+      .on("broadcast", { event: "offer" }, (msg) => {
+        const payload = msg?.payload ?? msg;
+        const offer = payload?.payload?.offer ?? payload?.offer;
+        if (!offer || hasOfferRef.current) return;
+        const from = payload?.payload?.from ?? payload?.from;
+        if (from && from !== "dispatcher") return;
 
-          stopRing();
-          const ring = createIncomingRing();
-          ringRef.current = ring;
-          ring.start();
-        }
+        hasOfferRef.current = true;
+        setIncomingOffer(offer);
+        offerChannelRef.current = channel;
+
+        stopRing();
+        const ring = createIncomingRing();
+        ringRef.current = ring;
+        ring.start();
       })
       .on("broadcast", { event: "call-ended" }, () => {
         stopRing();
@@ -142,8 +148,8 @@ export default function IncomingCall({
   if (!incomingOffer && callState !== "connected") return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-6 rounded-2xl border border-gray-700 bg-gray-900 p-8">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md">
+      <div className="flex flex-col items-center gap-6 rounded-2xl border border-white/[0.08] bg-[#0a0a0f] p-8 shadow-2xl">
         {callState === "connected" ? (
           <>
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-900/50">

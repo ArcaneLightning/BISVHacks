@@ -34,7 +34,10 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dispatcher";
   const authError = searchParams.get("error");
+  const isDispatcher = next === "/dispatcher" || next.startsWith("/dispatcher");
 
+  const [code, setCode] = useState("");
+  const [codeVerified, setCodeVerified] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -45,6 +48,28 @@ function LoginForm() {
   const [message, setMessage] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  const handleVerifyCode = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/verify-dispatcher-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setCodeVerified(true);
+      } else {
+        setError(data.error ?? "Invalid code");
+      }
+    } catch {
+      setError("Failed to verify code");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogle = async () => {
     setLoading(true);
@@ -103,18 +128,54 @@ function LoginForm() {
       <Card className="w-full max-w-sm border-slate-800 bg-slate-900">
         <CardHeader>
           <CardTitle className="text-white">
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            {isDispatcher && !codeVerified
+              ? "Dispatcher Access"
+              : mode === "signin"
+                ? "Sign In"
+                : "Create Account"}
           </CardTitle>
           <CardDescription>
-            {mode === "signin"
-              ? "Sign in to access the dispatcher dashboard."
-              : "Create a new dispatcher account."}
+            {isDispatcher && !codeVerified
+              ? "Enter the dispatcher access code to continue."
+              : mode === "signin"
+                ? "Sign in to access the dispatcher dashboard."
+                : "Create a new dispatcher account."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {isDispatcher && !codeVerified ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="code" className="text-white">
+                  Access Code
+                </Label>
+                <Input
+                  id="code"
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Enter code"
+                  className="border-slate-700 bg-slate-800 text-white"
+                  onKeyDown={(e) => e.key === "Enter" && handleVerifyCode()}
+                />
+              </div>
+              <Button
+                variant="default"
+                className="w-full py-5"
+                onClick={handleVerifyCode}
+                disabled={loading || !code.trim()}
+              >
+                {loading ? "Verifying..." : "Continue"}
+              </Button>
+              {error && (
+                <p className="text-center text-sm text-red-400">{error}</p>
+              )}
+            </>
+          ) : (
+            <>
           <Button
             variant="outline"
-            className="w-full border-slate-700 py-5 text-white hover:bg-slate-800"
+            className="w-full border-slate-600 bg-slate-800/50 py-5 text-slate-100 hover:bg-slate-700 hover:text-white"
             onClick={handleGoogle}
             disabled={loading}
           >
@@ -203,6 +264,8 @@ function LoginForm() {
               {mode === "signin" ? "Sign up" : "Sign in"}
             </button>
           </p>
+            </>
+          )}
         </CardContent>
       </Card>
     </main>

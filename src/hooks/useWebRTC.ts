@@ -231,7 +231,10 @@ export function useWebRTC(emergencyId: string | null) {
     };
 
     channel
-      .on("broadcast", { event: "answer" }, async ({ payload }) => {
+      .on("broadcast", { event: "answer" }, async (msg) => {
+        const data = msg?.payload ?? msg;
+        const answer = data?.answer;
+        if (!answer) return;
         answeredRef.current = true;
         if (offerRetryRef.current) {
           clearInterval(offerRetryRef.current);
@@ -240,16 +243,18 @@ export function useWebRTC(emergencyId: string | null) {
         if (!isPCOpen(pcRef.current)) return;
         try {
           await pcRef.current.setRemoteDescription(
-            new RTCSessionDescription(payload.answer),
+            new RTCSessionDescription(answer),
           );
           await flushCandidates(pcRef.current);
         } catch {
           /* connection may have closed */
         }
       })
-      .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
-        if (payload.from !== "dispatcher") {
-          await addIceCandidate(payload.candidate);
+      .on("broadcast", { event: "ice-candidate" }, async (msg) => {
+        const data = msg?.payload ?? msg;
+        if (data?.from === "dispatcher") return;
+        if (data?.candidate) {
+          await addIceCandidate(data.candidate);
         }
       })
       .on("broadcast", { event: "call-declined" }, () => {

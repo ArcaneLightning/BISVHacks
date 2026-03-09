@@ -13,6 +13,7 @@ export type Emergency = {
   incident_type: string | null;
   translated_summary: string | null;
   status: string | null;
+  affects_public: boolean | null;
   created_at: string;
 };
 

@@ -60,7 +60,9 @@ export default function NotificationToast() {
         { event: "INSERT", schema: "public", table: "emergencies" },
         (payload) => {
           const e = payload.new;
-          if ((e.severity ?? 0) < 4) return;
+          const s = e.severity ?? 0;
+          const affectsPublic = e.affects_public;
+          if (!(s >= 4 || (s === 3 && affectsPublic))) return;
           const toast: Toast = {
             id: e.id,
             message: `${e.incident_type ?? "Emergency"} - Severity ${e.severity ?? "?"}`,

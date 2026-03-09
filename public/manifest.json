@@ -4,8 +4,8 @@
   "description": "Emergency dispatch triage PWA",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#dc2626",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
   "icons": [
     {
       "src": "/icons/icon-192.png",

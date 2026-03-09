@@ -27,6 +27,7 @@ interface TriageResult {
   incident_type: string;
   translated_summary: string;
   critical_context: string;
+  affects_public: boolean;
 }
 
 export async function POST(request: Request) {
@@ -53,10 +54,11 @@ export async function POST(request: Request) {
           incident_type: "Other",
           translated_summary: `Silent SOS from ${profile.name || "anonymous user"} at GPS ${lat.toFixed(4)}, ${lng.toFixed(4)}. No details provided.`,
           critical_context: profile.medicalContext || "None provided",
+          affects_public: false,
         } as TriageResult);
 
     const supabase = getSupabase();
-    const baseRow = {
+    const coreRow = {
       user_name: profile.name || "Anonymous",
       medical_context: profile.medicalContext || null,
       lat,
@@ -66,29 +68,40 @@ export async function POST(request: Request) {
       severity: triage.severity,
       incident_type: triage.incident_type,
       translated_summary: triage.translated_summary,
-      status: "active",
     };
 
-    let { data: inserted, error: insertError } = await supabase
-      .from("emergencies")
-      .insert({ ...baseRow, preferred_language: profile.language || null })
-      .select("id")
-      .single();
+    const optionalFields: Record<string, unknown> = {
+      status: "active",
+      affects_public: triage.affects_public,
+      preferred_language: profile.language || null,
+    };
 
-    if (insertError) {
-      console.error("Insert attempt 1 failed:", insertError.message);
-      const retry = await supabase
+    let inserted: { id: string } | null = null;
+    let insertError: { message: string } | null = null;
+
+    for (const attempt of [
+      { ...coreRow, ...optionalFields },
+      { ...coreRow, status: "active", affects_public: triage.affects_public },
+      { ...coreRow, status: "active" },
+      coreRow,
+    ]) {
+      const result = await supabase
         .from("emergencies")
-        .insert(baseRow)
+        .insert(attempt)
         .select("id")
         .single();
-      inserted = retry.data;
-      insertError = retry.error;
+      if (!result.error) {
+        inserted = result.data;
+        insertError = null;
+        break;
+      }
+      insertError = result.error;
+      console.error("Insert attempt failed:", result.error.message, "attempt keys:", Object.keys(attempt));
     }
 
     if (insertError || !inserted) {
       console.error("Supabase insert error:", insertError);
-      throw new Error("Failed to store emergency");
+      throw new Error(`Failed to store emergency: ${insertError?.message ?? "unknown"}`);
     }
 
     const emergencyId = inserted.id;
@@ -126,9 +139,13 @@ export async function POST(request: Request) {
       ttsAudio,
     });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("Process SOS error:", err);
     return NextResponse.json(
-      { error: "Failed to process emergency" },
+      {
+        error: "Failed to process emergency",
+        detail: process.env.NODE_ENV === "development" ? message : undefined,
+      },
       { status: 500 },
     );
   }
@@ -163,7 +180,7 @@ async function triageWithAI(
   profileStr: string,
 ): Promise<TriageResult> {
   const systemPrompt =
-    'You are CrisisBridge, an expert AI emergency triage system. Output ONLY raw, valid JSON. Evaluate the provided text, GPS location, and User Profile. Calculate the severity (1-5). Schema: { "severity": INTEGER, "incident_type": "Fire | Medical | Assault | Natural Disaster | Other", "translated_summary": "A clear, 2-sentence English summary.", "critical_context": "Vital info extracted from the User Profile." }';
+    'You are CrisisBridge, an expert AI emergency triage system. Output ONLY raw, valid JSON. Evaluate the provided text, GPS location, and User Profile. Calculate the severity (1-5). Classify whether the incident AFFECTS THE GENERAL PUBLIC or other people nearby (e.g. fire, gas leak, active threat, mass casualty, building collapse, hazmat — affects_public true; vs personal medical emergency, fall, single-victim assault — affects_public false). Schema: { "severity": INTEGER, "incident_type": "Fire | Medical | Assault | Natural Disaster | Other", "translated_summary": "A clear, 2-sentence English summary.", "critical_context": "Vital info extracted from the User Profile.", "affects_public": BOOLEAN }';
 
   const userPrompt = `Transcript: '${transcript}' | GPS: ${lat}, ${lng} | User Profile: ${profileStr}`;
 
@@ -175,7 +192,11 @@ async function triageWithAI(
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("No JSON found in AI response");
 
-  return JSON.parse(jsonMatch[0]) as TriageResult;
+  const parsed = JSON.parse(jsonMatch[0]) as TriageResult;
+  if (typeof parsed.affects_public !== "boolean") {
+    parsed.affects_public = false;
+  }
+  return parsed;
 }
 
 async function generateFollowUp(

@@ -33,15 +33,21 @@ export default function FeedView() {
     const sortBySeverity = (list: Emergency[]) =>
       [...list].sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0));
 
+    const shouldShow = (e: Emergency) => {
+      const s = e.severity ?? 0;
+      return s >= 4 || (s === 3 && e.affects_public === true);
+    };
+
     async function load() {
       const { data } = await supabase
         .from("emergencies")
         .select("*")
         .eq("status", "active")
-        .gte("severity", 4)
+        .gte("severity", 3)
         .order("severity", { ascending: false })
         .limit(50);
-      if (data) setEmergencies(data as Emergency[]);
+      const filtered = (data ?? []).filter((e) => shouldShow(e as Emergency));
+      setEmergencies(filtered as Emergency[]);
     }
     load();
 
@@ -51,7 +57,7 @@ export default function FeedView() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "emergencies" },
         (payload) => {
-          if ((payload.new.severity ?? 0) >= 4) {
+          if (shouldShow(payload.new)) {
             setEmergencies((prev) => sortBySeverity([payload.new, ...prev]));
           }
         },
@@ -61,7 +67,7 @@ export default function FeedView() {
         { event: "UPDATE", schema: "public", table: "emergencies" },
         (payload) => {
           const updated = payload.new;
-          if (updated.status === "resolved" || (updated.severity ?? 0) < 4) {
+          if (updated.status === "resolved" || !shouldShow(updated)) {
             setEmergencies((prev) => prev.filter((e) => e.id !== updated.id));
           } else {
             setEmergencies((prev) => {
@@ -89,21 +95,23 @@ export default function FeedView() {
   };
 
   return (
-    <div className="flex flex-1 flex-col pb-20">
-      <div className="border-b border-gray-800 px-4 py-3">
-        <h2 className="text-lg font-bold text-white">High Priority Alerts</h2>
-        <p className="text-xs text-gray-500">
-          {emergencies.length} critical alert{emergencies.length !== 1 ? "s" : ""} nearby
+    <div className="flex flex-1 flex-col pb-24">
+      <div className="border-b border-white/[0.06] px-4 py-4">
+        <h2 className="text-lg font-semibold text-white">Nearby Alerts</h2>
+        <p className="mt-0.5 text-xs text-slate-400">
+          {emergencies.length} alert{emergencies.length !== 1 ? "s" : ""} (high severity or public impact)
         </p>
       </div>
       <ScrollArea className="flex-1">
         {emergencies.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 p-8">
-            <span className="text-3xl">✓</span>
-            <p className="text-sm text-gray-500">No active emergencies</p>
+          <div className="flex flex-col items-center justify-center gap-3 p-12">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20">
+              <span className="text-2xl text-emerald-400">✓</span>
+            </div>
+            <p className="text-sm text-slate-500">No active emergencies</p>
           </div>
         ) : (
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-4 p-4">
             {emergencies.map((e) => {
               const config =
                 severityConfig[e.severity ?? 1] ?? severityConfig[1];
@@ -115,21 +123,23 @@ export default function FeedView() {
                 <button
                   key={e.id}
                   onClick={() => handleSelect(e)}
-                  className="flex flex-col gap-1 border-b border-gray-800/50 px-4 py-3 text-left transition-colors hover:bg-gray-900/50 active:bg-gray-900"
+                  className="group flex flex-col gap-1.5 rounded-xl bg-gradient-to-br from-orange-500/50 to-red-600/50 p-[1px] transition-all hover:from-orange-500/70 hover:to-red-600/70"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-white">
-                      {e.incident_type ?? "Unknown"}
-                    </span>
-                    <Badge className={config.className}>{config.label}</Badge>
-                  </div>
-                  <p className="line-clamp-2 text-xs text-gray-400">
-                    {e.translated_summary ?? "Pending analysis..."}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <span>{e.user_name ?? "Anonymous"}</span>
-                    <span>&middot;</span>
-                    <span>{time}</span>
+                  <div className="flex flex-col gap-1.5 rounded-[10px] bg-[#0a0a0f] px-4 py-4 text-left transition-colors group-hover:bg-white/[0.03]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-white">
+                        {e.incident_type ?? "Unknown"}
+                      </span>
+                      <Badge className={`rounded-lg ${config.className}`}>{config.label}</Badge>
+                    </div>
+                    <p className="line-clamp-2 text-xs leading-relaxed text-slate-400">
+                      {e.translated_summary ?? "Pending analysis..."}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span>{e.user_name ?? "Anonymous"}</span>
+                      <span>&middot;</span>
+                      <span>{time}</span>
+                    </div>
                   </div>
                 </button>
               );
@@ -141,7 +151,7 @@ export default function FeedView() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
-          className="flex max-h-[85dvh] flex-col border-gray-800 bg-gray-950"
+          className="flex max-h-[85dvh] flex-col border-white/[0.06] bg-[#0a0a0f]"
         >
           {selected && (
             <>
@@ -165,7 +175,7 @@ export default function FeedView() {
                 </SheetDescription>
               </SheetHeader>
 
-              <Separator className="bg-gray-800" />
+              <Separator className="bg-white/[0.06]" />
 
               <ScrollArea className="flex-1 px-4">
                 <div className="flex flex-col gap-4 pb-4">
@@ -174,10 +184,10 @@ export default function FeedView() {
                   )}
 
                   <div>
-                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Summary
                     </h3>
-                    <p className="text-sm leading-relaxed text-gray-300">
+                    <p className="text-sm leading-relaxed text-slate-300">
                       {selected.translated_summary ?? "No summary available."}
                     </p>
                   </div>
@@ -211,10 +221,10 @@ export default function FeedView() {
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {label}
       </span>
-      <span className="text-sm text-gray-300">{value}</span>
+      <span className="text-sm text-slate-300">{value}</span>
     </div>
   );
 }

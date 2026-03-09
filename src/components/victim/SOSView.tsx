@@ -4,14 +4,6 @@ import { useCallback, useRef, useState } from "react";
 import { Mic, MicOff, Send, ArrowLeft, CheckCircle2, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { createClient } from "@/lib/supabase/client";
@@ -75,7 +67,15 @@ export default function SOSView({
 
         if (!res.ok) {
           const errBody = await res.text().catch(() => "");
-          throw new Error(`Server error ${res.status}: ${errBody}`);
+          let errMsg = `Server error ${res.status}`;
+          try {
+            const parsed = JSON.parse(errBody);
+            if (parsed.detail) errMsg += `: ${parsed.detail}`;
+            else if (parsed.error) errMsg += `: ${parsed.error}`;
+          } catch {
+            if (errBody) errMsg += `: ${errBody.slice(0, 200)}`;
+          }
+          throw new Error(errMsg);
         }
         const data = await res.json();
 
@@ -146,12 +146,12 @@ export default function SOSView({
   if (emergencyId) {
     return (
       <div className="flex flex-1 flex-col items-center gap-4 overflow-hidden px-4 pb-20 pt-4">
-        <Card className="w-full max-w-sm shrink-0 border-green-900/50 bg-green-950/30">
-          <CardContent className="flex items-center gap-3 py-3">
-            <CheckCircle2 className="h-6 w-6 shrink-0 text-green-500" />
-            <p className="text-sm text-green-300">{status}</p>
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-sm shrink-0 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-400" />
+            <p className="text-sm font-medium text-emerald-300">{status}</p>
+          </div>
+        </div>
         {followUp ? (
           <div className="flex min-h-0 w-full max-w-sm flex-1 flex-col">
             <FollowUpChat
@@ -162,14 +162,14 @@ export default function SOSView({
             />
           </div>
         ) : (
-          <Card className="w-full max-w-sm border-gray-800 bg-gray-950">
-            <CardContent className="flex flex-col items-center gap-2 py-6">
-              <CheckCircle2 className="h-10 w-10 text-green-500" />
-              <p className="text-center text-lg font-medium text-green-400">
-                Dispatchers have been notified.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-8">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            </div>
+            <p className="text-center text-lg font-semibold text-emerald-300">
+              Dispatchers have been notified.
+            </p>
+          </div>
         )}
         <audio ref={audioRef} className="hidden" />
       </div>
@@ -177,132 +177,117 @@ export default function SOSView({
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 pb-20">
+    <div className="flex flex-1 flex-col items-center gap-6 px-4 pb-24 pt-6">
       {!silentMode ? (
         <>
-          <div className="grid w-full max-w-xs grid-cols-2 gap-4">
-            {/* Voice SOS */}
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={handleSOS}
-                disabled={processing}
-                className={`group relative flex aspect-square w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border text-white shadow-[0_8px_30px_rgba(220,38,38,0.25)] transition-all active:scale-[0.97] disabled:opacity-50 ${
-                  isRecording
-                    ? "animate-pulse border-red-500 bg-red-600 ring-4 ring-red-500/30"
-                    : "border-red-900/50 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 hover:shadow-[0_8px_32px_rgba(220,38,38,0.35)]"
-                }`}
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.12),transparent)]" />
-                <div className="relative">
-                  {isRecording ? (
-                    <Send className="h-10 w-10" strokeWidth={2} />
-                  ) : processing ? (
-                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
-                  ) : (
-                    <Mic className="h-10 w-10" strokeWidth={2} />
-                  )}
-                </div>
-                <div className="relative text-center">
-                  <span className="block text-lg font-black tracking-wide">
-                    {processing ? "SENDING" : isRecording ? "SEND" : "SOS"}
-                  </span>
-                  <span className="block text-sm font-bold uppercase tracking-widest opacity-90">
-                    {isRecording ? "Tap to send" : "Voice"}
-                  </span>
-                </div>
-              </button>
-              <p className="text-center text-xs text-gray-500">
-                Notifies dispatchers
-              </p>
-            </div>
+          {/* Emergency prompt card */}
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.06] bg-white/[0.03] p-5 shadow-xl">
+            <h2 className="text-xl font-bold tracking-tight text-white">
+              Are you in an emergency?
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              Press the SOS button. Your live location will be shared with the nearest help centre and dispatchers.
+            </p>
+          </div>
 
-            {/* Silent SOS */}
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => setSilentMode(true)}
-                disabled={processing || isRecording}
-                className="group relative flex aspect-square w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-amber-900/50 bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-[0_8px_30px_rgba(245,158,11,0.25)] transition-all hover:from-amber-400 hover:to-amber-600 hover:shadow-[0_8px_32px_rgba(245,158,11,0.35)] active:scale-[0.97] disabled:opacity-50"
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.12),transparent)]" />
-                <MicOff className="relative h-10 w-10" strokeWidth={2} />
-                <div className="relative text-center">
-                  <span className="block text-lg font-black tracking-wide">SOS</span>
-                  <span className="block text-sm font-bold uppercase tracking-widest opacity-90">
-                    Silent
-                  </span>
-                </div>
-              </button>
-              <p className="text-center text-xs text-gray-500">
-                Location + optional message
+          {/* Main SOS button - large, gradient */}
+          <div className="flex flex-col items-center gap-3">
+            <button
+              onClick={handleSOS}
+              disabled={processing}
+              className={`group relative flex h-44 w-44 flex-col items-center justify-center gap-2 overflow-hidden rounded-full text-white shadow-2xl transition-all duration-200 active:scale-[0.97] disabled:opacity-60 ${
+                isRecording
+                  ? "animate-pulse bg-gradient-to-br from-orange-500 to-red-600 ring-4 ring-orange-500/40 ring-offset-4 ring-offset-[#0a0a0f]"
+                  : "bg-gradient-to-br from-orange-500 via-red-500 to-red-600 shadow-[0_0_60px_rgba(249,115,22,0.3)] hover:shadow-[0_0_80px_rgba(249,115,22,0.4)] hover:brightness-110"
+              }`}
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.2),transparent_50%)]" />
+              <div className="relative flex flex-col items-center gap-1">
+                {isRecording ? (
+                  <Send className="h-12 w-12" strokeWidth={2.5} />
+                ) : processing ? (
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/30 border-t-white" />
+                ) : (
+                  <span className="text-4xl font-black tracking-tighter">SOS</span>
+                )}
+                <span className="text-xs font-semibold uppercase tracking-widest opacity-90">
+                  {processing ? "Sending..." : isRecording ? "Tap to send" : "Press to record"}
+                </span>
+              </div>
+            </button>
+            <p className="text-center text-xs text-slate-500">Voice • Tap to record, tap again to send</p>
+          </div>
+
+          {/* Silent SOS option */}
+          <button
+            onClick={() => setSilentMode(true)}
+            disabled={processing || isRecording}
+            className="flex w-full max-w-sm flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-orange-500/20 hover:bg-white/[0.06] active:scale-[0.98] disabled:opacity-50"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20">
+              <MicOff className="h-6 w-6 text-amber-400" strokeWidth={2} />
+            </div>
+            <span className="text-sm font-semibold text-white">Silent SOS</span>
+            <span className="text-xs text-slate-500">Location + message</span>
+          </button>
+
+          {status && (
+            <div className="w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <p className="text-center text-sm text-slate-300">{status}</p>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="w-full max-w-sm rounded-2xl border border-white/[0.06] bg-white/[0.03] shadow-xl">
+          <div className="flex items-center gap-3 border-b border-white/[0.06] p-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
+              onClick={() => setSilentMode(false)}
+              disabled={processing}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h3 className="font-semibold text-white">Silent SOS</h3>
+              <p className="text-xs text-slate-400">
+                Location sent automatically. Add details if you can.
               </p>
             </div>
           </div>
 
-          {status && (
-            <Card className="w-full max-w-xs border-gray-800 bg-gray-900/50">
-              <CardContent className="py-3">
-                <p className="text-center text-sm text-gray-300">{status}</p>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      ) : (
-        <Card className="w-full max-w-sm border-gray-800 bg-gray-950">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 text-gray-400 hover:text-white"
-                onClick={() => setSilentMode(false)}
-                disabled={processing}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <CardTitle className="text-white">Silent SOS</CardTitle>
-                <CardDescription>
-                  Location sent automatically. Add details if you can.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-
-          <Separator className="bg-gray-800" />
-
-          <CardContent className="flex flex-col gap-3 pt-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <MessageSquareText className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                <Input
-                  value={silentText}
-                  onChange={(e) => setSilentText(e.target.value)}
-                  placeholder="Describe your emergency..."
-                  className="border-gray-700 bg-gray-900 pl-10 text-white placeholder:text-gray-600"
-                  onKeyDown={(e) => e.key === "Enter" && handleSilentSOS()}
-                />
-              </div>
+          <div className="flex flex-col gap-4 p-4">
+            <div className="relative">
+              <MessageSquareText className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <Input
+                value={silentText}
+                onChange={(e) => setSilentText(e.target.value)}
+                placeholder="Describe your emergency..."
+                className="rounded-xl border-white/10 bg-white/5 pl-10 text-white placeholder:text-slate-500 focus-visible:ring-orange-500/50"
+                onKeyDown={(e) => e.key === "Enter" && handleSilentSOS()}
+              />
             </div>
 
-            <Button
-              className="w-full bg-red-600 py-6 text-lg font-bold text-white shadow-lg shadow-red-900/30 hover:bg-red-500"
+            <button
               onClick={handleSilentSOS}
               disabled={processing}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 py-5 text-lg font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:brightness-110 disabled:opacity-60"
             >
               {processing ? (
-                <div className="flex items-center gap-2">
+                <>
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                   Sending...
-                </div>
+                </>
               ) : (
-                <div className="flex items-center gap-2">
+                <>
                   <Send className="h-5 w-5" />
                   Send Silent SOS
-                </div>
+                </>
               )}
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       )}
       <audio ref={audioRef} className="hidden" />
     </div>

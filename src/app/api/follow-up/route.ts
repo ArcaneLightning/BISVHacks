@@ -129,7 +129,8 @@ Latest response: ${transcript}
 Output ONLY raw valid JSON with this schema:
 {
   "severity": INTEGER (1-5, reassess based on all info — increase if situation is worse than initially thought, decrease if less severe),
-  "translated_summary": "Updated 2-3 sentence summary incorporating ALL information gathered including follow-up details. Include key details like number of people affected, injuries, dangers, etc."
+  "translated_summary": "Updated 2-3 sentence summary incorporating ALL information gathered including follow-up details. Include key details like number of people affected, injuries, dangers, etc.",
+  "affects_public": BOOLEAN — true if the incident affects the general public or other people nearby (fire, gas leak, active threat, mass casualty, building collapse, hazmat, etc.), false if mainly personal (single-victim medical, fall, assault)
 }`;
 
       const updateContent = await chatWithAI([
@@ -141,12 +142,16 @@ Output ONLY raw valid JSON with this schema:
       if (jsonMatch) {
         const update = JSON.parse(jsonMatch[0]);
         if (update.severity && update.translated_summary) {
+          const updatePayload: Record<string, unknown> = {
+            severity: update.severity,
+            translated_summary: update.translated_summary,
+          };
+          if (typeof update.affects_public === "boolean") {
+            updatePayload.affects_public = update.affects_public;
+          }
           await supabase
             .from("emergencies")
-            .update({
-              severity: update.severity,
-              translated_summary: update.translated_summary,
-            })
+            .update(updatePayload)
             .eq("id", emergency_id);
         }
       }

@@ -154,18 +154,18 @@ export default function FollowUpChat({
 
   return (
     <div className="flex w-full flex-1 flex-col gap-3 overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-gray-800 bg-gray-950 p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
         <div className="flex flex-col gap-2">
           {messages.map((m, i) => (
             <div
               key={i}
-              className={`rounded-lg px-3 py-2 text-sm ${
+              className={`rounded-xl px-3 py-2 text-sm ${
                 m.role === "ai"
-                  ? "self-start bg-gray-800 text-gray-200"
-                  : "self-end bg-red-900/50 text-gray-200"
+                  ? "self-start bg-white/[0.06] text-slate-200"
+                  : "self-end bg-orange-500/20 text-slate-200"
               }`}
             >
-              <span className="text-xs font-semibold uppercase text-gray-500">
+              <span className="text-xs font-semibold uppercase text-slate-500">
                 {m.role === "ai" ? "CrisisBridge AI" : "You"}
               </span>
               <p className="mt-0.5">{m.content}</p>
@@ -182,7 +182,7 @@ export default function FollowUpChat({
               <Button
                 onClick={stopSpeaking}
                 variant="outline"
-                className="w-full border-yellow-700 text-yellow-400 hover:bg-yellow-900/20"
+                className="w-full rounded-xl border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
               >
                 Stop AI Speaking
               </Button>
@@ -202,12 +202,12 @@ export default function FollowUpChat({
                 }}
                 placeholder="Type a response..."
                 disabled={processing}
-                className="border-gray-700 bg-gray-900 text-white placeholder:text-gray-600"
+                className="rounded-xl border-white/10 bg-white/5 text-white placeholder:text-slate-500"
               />
               <Button
                 onClick={handleTextSend}
                 disabled={processing || !textInput.trim()}
-                className="shrink-0 bg-blue-600 text-white hover:bg-blue-700"
+                className="shrink-0 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 text-white hover:brightness-110"
               >
                 Send
               </Button>
@@ -218,10 +218,10 @@ export default function FollowUpChat({
               onClick={handleRecord}
               disabled={processing}
               variant={isRecording ? "destructive" : "outline"}
-              className={`w-full py-5 ${
+              className={`w-full rounded-xl py-5 ${
                 isRecording
-                  ? "animate-pulse bg-red-600 text-white"
-                  : "border-gray-700 text-gray-300"
+                  ? "animate-pulse bg-gradient-to-r from-orange-500 to-red-600 text-white"
+                  : "border-white/10 text-slate-300 hover:bg-white/5"
               }`}
             >
               {processing
@@ -235,14 +235,14 @@ export default function FollowUpChat({
 
             <Button
               variant="ghost"
-              className="text-xs text-gray-600 hover:text-gray-400"
+              className="text-xs text-slate-500 hover:text-slate-300"
               onClick={onSkip}
             >
               Skip follow-up questions
             </Button>
           </div>
         ) : (
-          <p className="text-center text-sm text-green-400">
+          <p className="text-center text-sm text-emerald-400">
             All information gathered. Help is on the way.
           </p>
         )}
